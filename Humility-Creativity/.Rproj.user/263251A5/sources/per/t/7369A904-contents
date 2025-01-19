@@ -1,0 +1,230 @@
+################################################################################
+# Because we want to drop explanation of parceling the data to two parcels, 
+# then we wish to analyze the data in SOREMO.
+# In order to do so we need: 
+# 1. prepare a long format with only the relevant columns,
+# 2. rename Introv items to seperate constructs of shy and non-talkative
+# 3. impute the data as TripleR would do.
+################################################################################
+
+
+rm(list = ls())                               #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+if (is.null(dev.list()) == FALSE) dev.off()   #Clean Plots
+options(scipen = 15)                          #Avoid scientific notation 
+                                              # for up to 10 digits
+                                            
+test4missingRR     <- FALSE     # true is set if one wishes to locate teams w/o 
+                                # full round-robin
+overwriteSOREMOcsv <- FALSE      # true to create the SOREMO .csv file
+
+load("JDC.Humility.RawData")
+ipak (c("apaTables", "psych", "tidyverse"))
+
+# Prepare a long format file for SOREMO analysis by Tom
+x <- as.data.frame(longInput)
+  
+
+# Cleaning the data from unfamiliar teams                       ----------------
+# ==============================================================================
+
+# Knowing eachother: remove all dyads that does not know each other.
+# remove teams where at least two dyads don't know eachother in level 2 or more
+  x <- x[x$Know > 1,]
+
+# Cleaning the data from incomplete groups                      ----------------
+# ==============================================================================
+  
+# find lines to drop all together (didn't rate humility at all)
+  x <- x[-which((is.na(x$Hum1) & is.na(x$Hum2) & is.na(x$Hum3)) & (x$a.id != x$p.id)),]
+  
+  # the following participants should be dropped to reach full rr, since 
+  # somebody didn't rate them
+  droppedLines <- c("504:4", "504:5", "786:3", "995:5", "995:6", "981:5")
+  x <- x[!(x$a.id %in% droppedLines),]
+  x <- x[!(x$p.id %in% droppedLines),]
+
+  # remove ratings where A rates B, but there is no B ratings of A.
+  x$valid <- FALSE
+  for (i in 1:nrow(x)) {
+    a <- x$a.id[i]; p <- x$p.id[i]
+    if (any(x$a.id == p & x$p.id == a)) {x$valid[i] <- TRUE}}
+  x <- x[x$valid,]
+
+# remove all actors/partners that have less than 4 ratings all together
+# run the coming section until row number doesn't shrink
+
+  da <- group_by(x, a.id) %>% count()
+  dp <- group_by(x, p.id) %>% count()
+  da <- da[da$n > 3,]; dp <- dp[dp$n > 3,]
+  x <- x[x$a.id %in% da$a.id & x$a.id %in% dp$p.id, ]
+  x <- x[x$p.id %in% da$a.id & x$p.id %in% dp$p.id, ]
+  
+# eventually drop groups with less than 4 actors/partners
+
+  dp <- x %>% group_by(group.id) %>% distinct(p.id)  %>% count()
+  da <- x %>% group_by(group.id) %>% distinct(a.id) %>% count()
+  d <- merge(da, dp, by = "group.id")
+  d$valid <- (d$n.x > 3) & (d$n.y >3)
+  sum(d$valid)
+  gr <- d$group.id[d$valid]
+  x <- x[x$group.id %in% gr, ]
+ 
+
+# Imputation                                                                ----
+# ==============================================================================
+  
+    # After dropping the 'bad' groups, Let the imputation begin:
+    
+    # The averages of each column that will be used to impute missing values:
+      compVals <- x[0,]
+      for (c in 1:ncol(x)) {
+        a <- x[,c]
+        compVals[1,c] <- mean(a[which(!(is.na(a) | is.nan(a)))])
+      }
+      
+    # find the lines to impute:
+      x$missing <- apply(x, 1, function(m) sum(is.na(m)))
+      table(x$missing[x$Actor != x$Partner])
+      for (m in SRM.Columns) {
+        x[,m] <- ifelse(x$Actor == x$Partner, NA, 
+                                     ifelse(is.na(x[, m]), 
+                                            compVals[1,m],
+                                            x[,m]))
+      }
+      
+      # get rid of unnecessary columns:
+      x <- select(x, group.id, Actor, Partner, Hum1:Hum3, SRM.Columns, 
+                  everything(), -valid, -missing ) 
+      
+
+# Save the .csv file for the soremo analysis                                ----
+# ==============================================================================
+
+    x <- arrange(x, p.id, a.id)
+      
+    d <- x
+    #change the actor/partner to be 1-4 or 1-5 without "holes"
+    
+    gr <- unique(d$group.id)
+    for (g in gr) {
+      da <- sum(d$group.id == g)
+      if (da == 24) { # missing row Actor=partner=4, I don't know why
+        # copy another diagonal row, after this paragraph we erase all diagonal 
+        # lines so it doesn't matter.
+        tmp <- d[d$group.id == g & d$Actor == 1 & d$Partner == 1,]
+        tmp$Actor <- tmp$Partner <- 4
+        tmp$a.id <- tmp$p.id <- paste0(g, ":", 4)
+        d <- rbind(d, tmp)
+      }
+      if (sum(d$group.id == g) == 16) a <- 1:4 else a <- 1:5
+      d <- arrange(d, p.id, a.id)
+      # d <- d[order(d$p.id,d$a.id),]
+      d$Actor[d$group.id == g] <- a
+      d <- arrange(d, a.id, p.id)
+      # d <- d[order(d$a.id,d$p.id),]
+      d$Partner[d$group.id  == g] <- a
+    }
+    d <- arrange(d, p.id, a.id)
+      # d <- d[order(d$p.id,d$a.id),]
+      
+      # drop the diagonal lines since SOREMO doesn't want them
+      d <- d[d$a.id != d$p.id, ] 
+      d <- select(d, group.id:Safe3)
+      any(is.na(d))
+      if (overwriteSOREMOcsv) write.csv(d, "JDC4SOREMOAnalysis.csv", row.names = FALSE)
+    
+ 
+# Prepare wide format, in txt file, serperated by group size for the soremo analysis                                ----
+# ==============================================================================
+  # We try to prepare the data in: 
+  #   * wide format, 
+  #   * txt file, 
+  #   * serperated by group size     
+
+      w <- pivot_wider(d, 
+                       names_from = Partner, 
+                       names_sep = "_",
+                       values_from = SRM.Columns)
+      w <- select(w, group.id, Actor, paste0(rep(SRM.Columns, 5), "_", 
+                       rep(1:5, each = length(SRM.Columns) )))
+      
+      w <- arrange(w, group.id, Actor)
+      # convert the data to a text format as expected by Tom.
+     
+      
+      
+      wsrm.cols <- 3:ncol(w)
+      # sort groups of size 4 to be before groups of size 6
+      g <- w %>% group_by(group.id) %>% count()
+      wt <- left_join(w, g, by = "group.id" )
+      wt <- arrange(wt, n, group.id, Actor)
+      wt[,wsrm.cols] <- round(wt[,wsrm.cols], 0)
+      
+      wt <- as.data.frame(wt)
+      wt$Actor <- LETTERS[wt$Actor]
+      
+      # d <- data.frame(a = c(rep(1:4, 3), rep(1:5, 2)))
+      # d <- select(d, a)
+      # d$l <- LETTERS[d$a]
+      # d <- mutate(d, let = LETTERS[d$a])
+      # df$df.letters <- LETTERS[df$a]
+      # df <- as_tibble(df)
+      # df$tib.letters <- LETTERS[df$a]
+      # 
+      wt[,wsrm.cols] <- apply(wt[,wsrm.cols], 2, function(m)
+        {ifelse(is.na(m), "  ", format(m, digits = 2))})
+      wt <- select(wt, -n, -group.id)
+      
+      tt <- as.data.frame(apply(wt, 1, function(m) {paste0(m, collapse = "" )}))
+      write.table(tt, "wide.txt", append = FALSE, quote = FALSE,
+                  col.names = FALSE, row.names = FALSE)
+      paste(names(wt), collapse = ",")
+      nchar(tt[1,1])
+      
+      
+
+# Check for commplete round-robins using tripleR as test-tool   
+# ==============================================================================
+
+      # The following lines run SRM for each group seperately to locate a group 
+      # with non-full round-robin (the error message is that there are NAs outside
+      # the diagonal)
+      if(test4missingRR){
+        # prepare parceling:
+        x <- rowwise(x) %>% 
+          mutate(H1 = mean(c(Hum1, Hum3), na.rm = TRUE),
+                 H2 = Hum2,
+                 Creat1 = mean(c(Cre1, Cre3), na.rm = TRUE),
+                 Creat2 = Cre2,
+                 Sf1 = Safe1,
+                 Sf2 = Safe2)
+        x <- x[order(x$p.id,x$a.id),]
+        x <- as.data.frame(x)
+        
+        # remove NaN if there
+        x$H1 <- ifelse(is.nan(x$H1), NA, x$H1)
+        x$H2 <- ifelse(is.nan(x$H2), NA, x$H2)
+        
+        ipak("TripleR")
+        grs <- unique(x$group.id)
+        for (g in grs) {
+          print(g)
+          fitH <- RR(H1/H2     ~ a.id*p.id | group.id, 
+                     data = x[x$group.id == g,], na.rm = FALSE)
+        }
+      } # End of test for missing round-robins  
+
+# Save environment for further analysis in tripleR and other                ----
+# ==============================================================================
+  FullLongInput <- longInput; longInput <- x
+  rm(list = setdiff(ls(), c("longInput", "wideInput", "FullLongInput", 
+                            "x", "SRM.Columns", "ipak")))   
+  save.image("JDC.Humility.FullRR.RawData")
+
+
+# The following lines are here to enable test that the data is really full
+# round-robins.
+   # ipak("TripleR")
+   # fitH <- RR(H1/H2     ~ a.id*p.id | group.id, data = x, na.rm = FALSE)
+

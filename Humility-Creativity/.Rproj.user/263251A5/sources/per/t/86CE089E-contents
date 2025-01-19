@@ -1,0 +1,59 @@
+################################################################################
+
+rm(list = ls())                               #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+if (is.null(dev.list()) == FALSE) dev.off()   #Clean Plots
+options(scipen = 15)                          #Avoid scientific notation 
+                                              # for up to 10 digits
+
+# SRM - RR ANALYSIS:
+# ==============================================================================
+
+load("main.RImage")
+load(paste0(studyName, ".FullRR.ReadyforAnalaysis"))
+
+ipak (c("TripleR", "ggplot2", "data.table", "apaTables", "psych", "tidyverse"))
+
+# BiVariate Analysis for all variables: 
+# --------------------------------------
+x <- as.data.frame(x)
+
+fitHCreativity <- RR(H1/H2 + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitHCreativity
+
+fitHContribution <- RR(H1/H2 + Contrib1/Contrib2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitHContribution
+
+fitIntroCreativity <- RR(NonTalk/Shy + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitIntroCreativity
+
+fitIntroContribution <- RR(NonTalk/Shy + Contrib1/Contrib2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitIntroContribution
+
+fitShyCreativity <- RR(Shy/Shy + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitShyCreativity
+
+fitShyContribution <- RR(Shy/Shy + Contrib1/Contrib2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitShyContribution
+
+fitShyCreativity <- RR(Shy/Shy + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitShyCreativity
+
+fitNonTalkativeContribution <- RR(NonTalk/NonTalk + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitNonTalkativeContribution
+
+fitHSafe <- RR(Sf1/Sf2 + H1/H2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitHSafe
+
+fitSafeCreativity <- RR(Sf1/Sf2 + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitSafeCreativity
+
+fitSafeContrib <- RR(Sf1/Sf2 + Contrib1/Contrib2 ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitSafeContrib
+
+fitShySafe <- RR(Shy/Shy + Sf1/Sf2 ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitShySafe
+
+fitShyH <- RR(Shy/Shy + H1/H2 ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitShyH
+

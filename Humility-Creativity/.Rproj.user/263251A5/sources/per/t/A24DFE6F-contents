@@ -1,0 +1,165 @@
+
+
+# JDC CFA - Verify the constucts are represented by the data as we planned
+# ==============================================================================
+# FACTOR ANALYSIS ON THE RAW DATA
+# =============================================================================
+# In this test, we want to prove that the items actually represent different 
+#   constructs. 
+#   To do so, we run these steps: 
+#   1. we define a base model that contains the factors of the items 
+#       in the questionnaire.
+#   2. We define variants of this base model, where we set a covariance of 1
+#       between each two factors, forcing them to represent a combined factor.
+#       this will represent the case where the items of these two factors, 
+#       actually represent a single construct.
+#   3. Then we compare the base model with the joint factors model, hoping 
+#       to see that the base model better represents the sample. (as indeed happened) 
+#   4. We hoped to see the same factorial behavior when doing the same analysis
+#       on the actor effects. The test is performed in file 03_JDC RR Analysis.R.
+
+
+rm(list = ls())                               #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+
+fullRRData <- TRUE    # Set to TRUE if we imitate the data sent for analysis in SOREMO
+                      # Set to FALSE if we use the entire data set as collected
+                      # (decision to use 30 teams or all collected data is done
+                      # in the 01_JDC ReadQualtrics.R file)
+
+# SRM - RR ANALYSIS:
+# ==============================================================================
+
+if(fullRRData) load("JDC.Humility.FullRR.ReadyforAnalaysis") else
+  load("JDC.Humility.ReadyforAnalaysis")
+
+ipak (c("TripleR", "ggplot2", "data.table", "apaTables", "psych", "tidyverse"))
+
+if (!require('lavaan')) install.packages('lavaan'); library('lavaan')
+if (!require('semPlot')) install.packages('semPlot'); library('semPlot')
+
+# Note we refer to the Psychological Safety construct without the third item
+# that proved to be different than the two other items in the alpha check.
+# So we did both tests: first without Safe3, and followed by full model
+
+
+# Comparison of models without item3 of Safety:
+# We set all possible combinations of joining two constructs together, and
+# than compare their chi-sq to verify that the basic 4-constructs model
+# is the best option.
+m0 <- 
+  'H      =~ Hum1 + Hum2 + Hum3
+  Sf      =~ Safe1 + Safe2 
+  Contrib =~ Contrib1 + Contrib2
+  Creat   =~ Cre1 + Cre2 + Cre3
+'
+
+mHSf <- 
+  'HSf =~ Hum1 + Hum2 + Hum3 + Safe1 + Safe2
+  Cont =~ Contrib1 + Contrib2 
+  Cre  =~ Cre1 + Cre2 + Cre3'
+mHCont <- 
+  'HCont =~ Hum1 + Hum2 + Hum3 + Contrib1 + Contrib2 
+  Sf     =~ Safe1 + Safe2
+  Cre    =~ Cre1 + Cre2 + Cre3'
+mHCre <- 
+  'HCr =~ Hum1 + Hum2 + Hum3 + Cre1 + Cre2 + Cre3
+  Sf   =~ Safe1 + Safe2
+  Cont =~ Contrib1 + Contrib2'
+mContCre <- 
+  'H =~ Hum1 + Hum2 + Hum3
+  Sf =~ Safe1 + Safe2
+  CC =~ Contrib1 + Contrib2 + Cre1 + Cre2 + Cre3'
+mContSf <- 
+  'H     =~ Hum1 + Hum2 + Hum3
+  ContSf =~ Contrib1 + Contrib2 + Safe1 + Safe2
+  Cre    =~ Cre1 + Cre2 + Cre3'
+mCreSf <- 
+  'H     =~ Hum1 + Hum2 + Hum3 
+  Cont   =~ Contrib1 + Contrib2 
+  CreSf  =~ Cre1 + Cre2 + Cre3 + Safe1 + Safe2'
+
+fit0        <- sem(m0, data = longInput)
+fitHSf      <- sem(mHSf, data = longInput)
+fitHCont    <- sem(mHCont, data = longInput)
+fitHCre     <- sem(mHCre, data = longInput)
+fitContCre  <- sem(mContCre, data = longInput)
+fitContSf   <- sem(mContSf, data = longInput)
+fitCreSf    <- sem(mCreSf, data = longInput)
+
+anova(fit0, fitHSf)
+anova(fit0, fitHCont)
+anova(fit0, fitHCre)
+anova(fit0, fitContCre)
+anova(fit0, fitContSf)
+anova(fit0, fitCreSf)
+
+semPaths(fit0, "std", 
+         rotation = 1, 
+         exoVar = FALSE, 
+         exoCov = TRUE, 
+         nCharNodes = 0,
+         #exoCov = FALSE, # Exclude the covariance
+         edge.color = "black",
+         what = "mod",
+         residuals = FALSE,
+         sizeInt = 15,
+         edge.label.cex = 1,
+         label.prop = .8,
+         # cardinal = FALSE,
+         sizeMan = 10,
+         layout = "spring")
+
+summary(fit0, fit.measures = TRUE)
+
+# Comparison of models with item3 of Safety:
+# We set all possible combinations of joining two constructs together, and
+# than compare their chi-sq to verify that the basic 4-constructs model
+# is the best option.
+m0 <- 
+  'H      =~ Hum1 + Hum2 + Hum3
+  Sf      =~ Safe1 + Safe2 + Safe3
+  Contrib =~ Contrib1 + Contrib2
+  Creat   =~ Cre1 + Cre2 + Cre3
+'
+
+mHSf <- 
+  'HSf =~ Hum1 + Hum2 + Hum3 + Safe1 + Safe2 + Safe3
+  Cont =~ Contrib1 + Contrib2 
+  Cre  =~ Cre1 + Cre2 + Cre3'
+mHCont <- 
+  'HCont =~ Hum1 + Hum2 + Hum3 + Contrib1 + Contrib2 
+  Sf     =~ Safe1 + Safe2 + Safe3
+  Cre    =~ Cre1 + Cre2 + Cre3'
+mHCre <- 
+  'HCr =~ Hum1 + Hum2 + Hum3 + Cre1 + Cre2 + Cre3
+  Sf   =~ Safe1 + Safe2 + Safe3
+  Cont =~ Contrib1 + Contrib2'
+mContCre <- 
+  'H =~ Hum1 + Hum2 + Hum3
+  Sf =~ Safe1 + Safe2 + Safe3
+  CC =~ Contrib1 + Contrib2 + Cre1 + Cre2 + Cre3'
+mContSf <- 
+  'H     =~ Hum1 + Hum2 + Hum3
+  ContSf =~ Contrib1 + Contrib2 + Safe1 + Safe2 + Safe3
+  Cre    =~ Cre1 + Cre2 + Cre3'
+mCreSf <- 
+  'H     =~ Hum1 + Hum2 + Hum3 
+  Cont   =~ Contrib1 + Contrib2 
+  CreSf  =~ Cre1 + Cre2 + Cre3 + Safe1 + Safe2 + Safe3'
+
+fit0        <- sem(m0, data = longInput)
+fitHSf      <- sem(mHSf, data = longInput)
+fitHCont    <- sem(mHCont, data = longInput)
+fitHCre     <- sem(mHCre, data = longInput)
+fitContCre  <- sem(mContCre, data = longInput)
+fitContSf   <- sem(mContSf, data = longInput)
+fitCreSf    <- sem(mCreSf, data = longInput)
+
+anova(fit0, fitHSf)
+anova(fit0, fitHCont)
+anova(fit0, fitHCre)
+anova(fit0, fitContCre)
+anova(fit0, fitContSf)
+anova(fit0, fitCreSf)
+

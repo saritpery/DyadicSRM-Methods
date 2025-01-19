@@ -1,0 +1,131 @@
+
+
+# SRM - RR ANALYSIS PREPERATIONS #2
+# ==============================================================================
+
+# Prepare parcels and Constructs from parcels
+# -------------------------------------------
+
+# We use the RR function, that can only handle 2 questions per construct 
+# at a time! Hence we need to prepare parcels so that each construct can be 
+# described by 2 parcels.
+
+# Note regarding the order/sort of the data: 
+# The data needs to be sorted by partner and then by actor for the SRM analysis.
+
+rm(list = ls())                               # Clean the Global Environment
+cat ("\014")                                  # Clean the R console
+if (is.null(dev.list()) == FALSE) dev.off()   # Clean Plots
+Alpha.Check <- TRUE # Turn to TRUE in the beginning of work, to verify that the items are right
+
+load("JDC.Humility.RawData") 
+
+ipak("tidyverse")
+if (Alpha.Check) {
+    ipak(c("apaTables", "psych"))
+    const <- c("Contrib", "Cre", "Hum", "Introv", "Safe")
+    for (cst in const) {
+        alphCheckDF <- longInput[, grep(paste0("^",cst), names(longInput))]
+        apa.cor.table(alphCheckDF, show.conf.interval = FALSE)
+        print(alpha(alphCheckDF))
+    }
+    # alpha check for self-humility items: 
+    alphCheckDF <- as.data.frame(select(wideInput, starts_with("Self_Hum")))
+    apa.cor.table(alphCheckDF, show.conf.interval = FALSE)
+    alpha(alphCheckDF)
+}
+
+
+# Option 1
+#=========
+
+x <- rowwise(longInput) %>% 
+    mutate(H1 = mean(c(Hum1, Hum3), na.rm = TRUE),
+           H2 = Hum2,
+           Creat1 = mean(c(Cre1, Cre3), na.rm = TRUE),
+           Creat2 = Cre2,
+           Sf1 = mean(c(Safe1, Safe3), na.rm = TRUE),
+           Sf2 = Safe2,
+           HSelf = mean(c(Self_Hum_1, Self_Hum_2, Self_Hum_3), na.rm = TRUE)) %>% 
+    mutate(Hum.raw = mean(c(Hum1, Hum2, Hum3), na.rm = TRUE),
+           Creat.raw = mean(c(Cre1, Cre2, Cre3), na.rm = TRUE),
+           Safety.raw = mean(c(Safe1, Safe2, Safe3), na.rm = TRUE),
+           Contrib.raw = mean(c(Contrib1, Contrib2), na.rm = TRUE),
+           Shy.raw = Introv2,
+           NonTalk.raw = Introv1,
+           Introv.raw = mean(c(Introv1, Introv2), na.rm = TRUE))
+           
+x <- x[order(x$p.id,x$a.id),]
+
+
+# Option 2 # drop item Safe3
+# ---------------------------
+x <- rowwise(longInput) %>% 
+    mutate(H1 = mean(c(Hum1, Hum3), na.rm = TRUE),
+           H2 = Hum2,
+           Creat1 = mean(c(Cre1, Cre3), na.rm = TRUE),
+           Creat2 = Cre2,
+           Sf1 = Safe1,
+           Sf2 = Safe2,
+           HSelf = mean(c(Self_Hum_1, Self_Hum_2, Self_Hum_3), na.rm = TRUE)) %>% 
+    mutate(Hum.raw = mean(c(Hum1, Hum2, Hum3), na.rm = TRUE),
+           Creat.raw = mean(c(Cre1, Cre2, Cre3), na.rm = TRUE),
+           Safety.raw = mean(c(Safe1, Safe2), na.rm = TRUE),
+           Contrib.raw = mean(c(Contrib1, Contrib2), na.rm = TRUE),
+           Shy.raw = Introv2,
+           NonTalk.raw = Introv1,
+           Introv.raw = mean(c(Introv1, Introv2), na.rm = TRUE))
+
+x <- x[order(x$p.id,x$a.id),]
+
+x <- select(x, a.id, p.id, H1, H2, Creat1, Creat2, Contrib1, Contrib2, Sf1, Sf2, Introv1, Introv2, HSelf, everything())
+
+
+# FACTOR ANALYSIS ON THE RAW DATA
+# =============================================================================
+# In this test, we want to prove that the items actually represent different 
+#   constructs. 
+#   To do so, we run these steps: 
+#   1. we define a base model that contains the factors of the items 
+#       in the questionnaire.
+#   2. We define variants of this base model, where we set a covariance of 1
+#       between each two factors, forcing them to represent a combined factor.
+#       this will represent the case where the items of these two factors, 
+#       actually represent a single construct.
+#   3. Then we compare the base model with the joint factors model, hoping 
+#       to see that the base model better represents the sample. (as indeed happened) 
+#   4. We hoped to see the same factorial behavior when doing the same analysis
+#       on the actor effects. The test is performed in file 03_JDC RR Analysis.R.
+
+if (!require('lavaan')) install.packages('lavaan'); library('lavaan')
+if (!require('semPlot')) install.packages('semPlot'); library('semPlot')
+
+# Step1: define the base model:
+    m0 <- 'H =~ Hum1 + Hum2 + Hum3
+        Sf =~ Safe1 + Safe2 + Safe3
+        Contrib =~ Contrib1 + Contrib2
+        Creat =~ Cre1 + Cre2 + Cre3'
+
+    fit0 <- sem(m0, data = longInput)
+    summary(fit0, standardized = TRUE, fit.measures=TRUE)
+    
+# Step2: define the variants of the model
+    fitHSf <- update(fit0, add =  'H ~~ 1*Sf') # humility & psychological safety aren't distinguishable
+    fitHCont <- update(fit0, add =  'H ~~ 1*Contrib') # humility & contribution
+    fitHCreat <- update(fit0, add =  'H ~~ 1*Creat')  # humility & creativity
+    fitContrCreat <- update(fit0, add =  'Contrib ~~ 1*Creat')
+    fitContrSf <- update(fit0, add =  'Contrib ~~ 1*Sf')
+    fitCreatSf <- update(fit0, add =  'Creat ~~ 1*Sf')
+# Step3: compare the models with the base model: 
+    anova(fit0, fitHSf)
+    anova(fit0, fitHCont)
+    anova(fit0, fitHCreat)
+    anova(fit0, fitHSf)
+    anova(fit0, fitContrCreat)
+    anova(fit0, fitContrSf)
+    anova(fit0, fitCreatSf)
+
+# clean the environment  
+rm(list = setdiff(ls(), c("longInput", "wideInput", "x", "ipak")))
+
+save.image("JDC.Humility.ReadyforAnalaysis")

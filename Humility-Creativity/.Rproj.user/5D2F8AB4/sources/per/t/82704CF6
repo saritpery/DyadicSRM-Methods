@@ -1,0 +1,24 @@
+{
+    "id": "82704CF6",
+    "path": "~/Dropbox/HUJI/RIC/RIClistening/00_readData.R",
+    "project_path": null,
+    "type": "r_source",
+    "hash": "3710073582",
+    "contents": "",
+    "dirty": false,
+    "created": 1605608704990.0,
+    "source_on_save": false,
+    "relative_order": 3,
+    "properties": {
+        "cursorPosition": "11,0",
+        "scrollLine": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1604826628,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1604826628,
+    "read_only": false,
+    "read_only_alternatives": []
+}

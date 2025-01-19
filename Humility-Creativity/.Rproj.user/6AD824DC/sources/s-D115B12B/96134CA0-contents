@@ -1,0 +1,7 @@
+rm(list = ls())                               #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+
+load("main.RImage")
+load(imgName(".FullRR.Pairwise"))
+
+t <- cor(select(apRelEffects, ends_with("_rel")))

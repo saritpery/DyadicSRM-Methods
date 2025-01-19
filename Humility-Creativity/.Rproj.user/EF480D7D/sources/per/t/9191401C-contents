@@ -1,0 +1,63 @@
+# Authors: Sarit Pery, The Hebrew university of Jerusalem
+#          Michal Lehman, The Hebrew university of Jerusalem
+# Date:    Dec-2018
+#          Wrapped for publication March-2022
+
+
+# Project Code Files description
+# -------------------------------------------------------------------------
+  # There are 10 code files:
+  # 00 Main HumPerf Study 3.R                 Current file. Runs all.
+  # 01 HumPerf ReadCSVs_ExportedFromQualtrics.R           Read, join and format the data.
+  # 02 HumPerf Clean the data.R               Clean the data.
+  # 03 HumPerf Prepare parcels.R              Prepare the data for analysis.
+  # 04 HumPerf RR Analysis.R                  Basic SRM Analysis
+  # 05 HumPerf Groups Analysis RMLE.R         Group level var-cov SRM analysis.
+  # 07 HumPerf mediation test in Individual level.R       Individual level mediation
+  # 08 HumPerf Prepare PAIRWISE data for APIM current.R   Prepare for APIM #1
+  # 09 HumPerf Prepare dummy codes for APIM.R             Prepare for APIM #2
+  # 10 HumPerf APIM analyses on SRM output.R  Relational(dyadic) level analysis
+  # 
+  # Each File creates an .RImage file to be used by the next code.
+  # Since all .RImage files are ready, each file can be executed as stand-alone.
+  
+
+# This File Process:
+# -------------------------------------------------------------------------
+  # Set parameters for the run (mainly control for which code to run)
+  
+# House cleaning ---------------------------------------------------------------
+  rm(list = ls())                              #Clean the Global Environment
+  cat ("\014")                                 #Clean the R console
+  if (is.null(dev.list()) == FALSE) dev.off()  #Clean Plots
+  options(scipen = 10)                         #Avoid scientific notation for up to 10 digits
+
+# Project and Utility Parameters, functions, and packages ----------------------
+  source("99_utility Functions.R")
+
+  studyName <-        "HumPerf"
+  percTargetTerminology <- TRUE
+
+  codeFileNames <- c(
+    "00 Main HumPerf Study 3.R",
+    "01 HumPerf ReadCSVs_ExportedFromQualtrics.R",
+    "02 HumPerf Clean the data.R",
+    "03 HumPerf Prepare parcels.R",
+    "04 HumPerf RR Analysis.R",
+    "05 HumPerf Groups Analysis RMLE.R",
+    "07 HumPerf mediation test in Individual level.R",
+    "08 HumPerf Prepare PAIRWISE data for APIM current.R",
+    "09 HumPerf Prepare dummy codes for APIM.R",
+    "10 HumPerf APIM analyses on SRM output.R")  
+  reRunAll            <- TRUE        # overrides all other parameters
+  save.image("main.RImage")
+  
+################################################################################
+##                       MAIN PROGRAM                                        ###
+################################################################################
+    
+  if (reRunAll) {
+    for (i in codeFileNames) {
+      source(i)
+    }
+  }

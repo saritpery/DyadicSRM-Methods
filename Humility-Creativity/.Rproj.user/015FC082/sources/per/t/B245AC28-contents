@@ -1,0 +1,199 @@
+rm(list = ls())                              #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+if (is.null(dev.list()) == FALSE) dev.off()   #Clean Plots
+options(scipen = 15)                          #Avoid scientific notation for up to 10 digits
+
+# Parameters --------------------------------------------------------------
+
+    minGroupSize <- 4       # No of minimum members in a group (usually 4)
+    Max.Miss     <- 100     # No of missing Values allowed in a row 
+    
+    # if TRUE, participants with uniform replies in ALL the fields would be removed
+    Rm_zero_var_replies <- FALSE 
+######---------------- End of parameters input.
+
+
+# IMPORTANT NOTE ABOUT THE INPUT DATA: 
+#
+# This code isn't suitable for reading the data from exported CSV file from 
+# Qualtrics, because the data is formatted differently.
+# For Transformation from csv to Qualtrics-like format, check the 
+# Hekman's data analysis (on Humility)
+
+
+# Utility functions -------------------------------------------------------
+    
+    # ipak function: install and load multiple R packages.
+    # check to see if packages are installed. Install them if they are not, 
+    # then load them into the R session.
+    ipak <- function(pkg){
+        new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+        if (length(new.pkg)) 
+            install.packages(new.pkg, dependencies = TRUE)
+        suppressPackageStartupMessages(sapply(pkg, 
+                                              require, character.only = TRUE))
+    }
+    
+    ipak("tidyverse")
+
+    source("read_Qualtrics.R") #This file is different from the original file of Avi and Nadav Kluger, because it enables dropping the labels.
+    
+    convertLetter2Number <- function(lettersVector){
+        # The function assumes the vector contains all the relevant letters
+        # in consequtive manner (e.g: ABCD, or ABCDE)
+        lettersFactor <- as.factor(LETTERS)
+        lettersVector <- factor(lettersVector, levels = levels(lettersFactor)) 
+        lettersVector <- as.numeric(lettersVector)
+    }
+    
+# Import Qualtrics data ---------------------------------------------------
+
+
+    # Locate the Qualtrics' data:
+    #      1. SurveyID = copy the address of the current survey: from the distribution menu
+    #               in Qualtrics, probably begins with SV_
+    #      2. API token from the = sign Account settings. It's the same token for all surveys in an account. 
+    #      3. dataCenter = fixed for the hewbrew university Qualtrics account.
+
+    Sys.setenv("api_key"    = "6uSGbpue1UW7dfrCda6BJoauMyJFe2pyJI179N7o")  #Sarit
+    #Sys.setenv("api_key"    = "	UT0Dq7E6XR6heyNYWghyBigOA2Q4lwGELZieuyAz") #Avi
+    Sys.setenv("dataCenter" = "az1.qualtrics.com")
+    
+    inputEng <- read_Qualtrics(surveyID = "SV_eRoz0XvETm6go73", addLabels = TRUE) #if this doesn't run, remove the 'addLabel' parameter.
+    inputHeb <- read_Qualtrics(surveyID = "SV_dnku5KyJkrhym21", addLabels = TRUE) #if this doesn't run, remove the 'addLabel' parameter.
+    
+# Adjust current survey data ----------------------------------------------
+
+    inputEng <- select(inputEng, -Lang)
+    x <- as.data.frame(rbind(inputEng, inputHeb))
+
+    x <- select(x, -c(StartDate:UserLanguage))   #Delete Qualtrics variables
+    x <- rename(x, group.id = Group)
+    x <- x[which(!is.na(x$group.id)),]           #Delete Rows w/o group id = chose heb language which leaves an empty row in the English survey.
+
+    #join the different actors id into one column. remove the rest of the columns.
+    x$Actor <- apply(x[, c("Letter4", "Letter5", "Letter6")], 1, function(m) sum(m, na.rm = TRUE))
+    x <- select(x, group.id, gSize, Actor, everything(), -c("Letter4", "Letter5", "Letter6") )
+
+    #There was a mixup in the groups' numbers. so group 892=219=812.
+    x$group.id[which(x$group.id == 219 | x$group.id == 812)] <- 892
+    x$group.id[which(x$group.id == 204)] <- 240
+    
+#     # Initiate Data summary reports.
+#     DataReport              <- list()
+#     DataReport$groupSize    <- 4:6
+#     DataReport$initialObsNo <- table(x$gSize)
+# 
+# # Imputation --------------------------------------------------------------
+# 
+#     #   No imputation required currently
+
+# Handle missing values --------------------------------------------------
+
+    ignoredVariables  <- c(grep("Know._.", colnames(x), value = TRUE), 
+                           grep("Self_Hum_.", colnames(x), value = TRUE),
+                           "Age", "Gender", "Mother_Ton", "Tenure")
+    NON.SRM.VARIABLES <- c("group.id", "gSize","Actor")
+    SRM.Columns       <- colnames(select(x, 
+                                         -c(NON.SRM.VARIABLES, ignoredVariables)))
+    SRM.Q.num         <- 13 
+        
+#     # Handle missing replies
+#     x$MISS <- apply(x[, SRM.Columns], 1, 
+#                     function(x) sum(is.na(x)))
+#     missing <-  x[which(x$MISS > (SRM.Q.num*(x$gSize-3) + Max.Miss)),] 
+#     #write.csv(missing,paste0("missing",group.size, ".csv"))
+#     DataReport$lines.dropped.because.missing.responeses <<- 
+#       c(DataReport$lines.dropped.because.missing.responeses, nrow(missing))
+#     x <- x[which(x$MISS <= (SRM.Q.num*(x$gSize-3) + Max.Miss)), ] 
+#         
+#     # Handle replies with zero variance
+#     x$actorVar <- apply(x[, SRM.Columns], 1, var, na.rm = TRUE)
+#     DataReport$zero.Variance.Participants <<- 
+#       DataReport$zero.Variance.Participants + 
+#       length(which(x$actorVar == 0))
+#     DataReport$zero.var.in.ngroups <<- 
+#       c(DataReport$zero.var.in.ngroups,
+#         length(unique(x[which(x$actorVar == 0),"group.id"])))
+#     DataReport$groups.zero.var.replies <<- c(
+#       DataReport$groups.zero.var.replies,
+#       paste(unique(x[which(x$actorVar == 0),"group.id"]),
+#             collapse = ","))
+#     if (Rm_zero_var_replies) 
+#       x <- x[which(x$actorVar != 0), ]
+#     
+#     # Handle incomplete round-robins (with at least minGroupSize persons)
+#     tmp   <- as.data.frame(table (x$group.id))         
+#         
+#     DataReport$downsized.groups  <<- 
+#       c(DataReport$downsized.groups, 
+#         length(which((x$Freq < group.size)
+#                      & (x$Freq >= 4))))
+#     DataReport$incomplete.RR     <<- c(
+#       DataReport$incomplete.RR, 
+#       length(which(x$Freq < 4)))
+#     tmp <- tmp[which(tmp$Freq >= 4), ]              
+#     x <- x[which(x$group.id %in% tmp$Var1), ] 
+# 
+#     DataReport$analysis.group.no <<- 
+#       c( DataReport$analysis.group.no, length(table(x$group.id)))
+#     DataReport$analysis.participants.no <<- 
+#       c(DataReport$analysis.participants.no, nrow(x))
+#     
+#     x <- select(x, -MISS, -actorVar) %>% 
+#       mutate(originalGroupSize = gSize)
+#     NON.SRM.VARIABLES <- c(NON.SRM.VARIABLES, "originalGroupSize")
+#  
+#     DataReport$lines.dropped.because.missing.responeses <- NULL
+#     DataReport$zero.Variance.Participants <- NULL
+#     DataReport$zero.var.in.ngroups <- NULL
+#     DataReport$groups.zero.var.replies <- 0
+#     DataReport$downsized.groups  <- NULL
+#     DataReport$incomplete.RR     <- NULL
+#     DataReport$analysis.group.no <- NULL
+#     DataReport$analysis.participants.no <- NULL
+# 
+#     #Clean the environment:
+#     #rm(list=setdiff(ls(),c( "x","group.size", "DataReport")))
+# # End of Missing data handling
+
+# Simple rr design --------------------------------------------------------
+
+    longInput <- 
+      gather(x, key = "Question", value = "Value", SRM.Columns) %>% 
+      extract("Question", c("Const", "Partner", "item"), "([[:alnum:]]+)_(.)_(.)") %>% 
+      mutate(item = paste0(Const, item)) %>% 
+      select(-Const) %>% 
+      mutate(Partner = convertLetter2Number(Partner)) %>% 
+      mutate(p.id = paste0(group.id, ":", Partner), 
+             a.id = paste0(group.id, ":", Actor)) %>% 
+      distinct() %>% 
+      # The following row corrects a bug/feature of spread
+      group_by(item) %>% 
+      mutate(i = row_number()) %>% 
+      spread(key = "item", value = "Value") %>% 
+      # The following row deletes the index created to overcome the spread error
+      select(-c(i))
+    
+    NON.SRM.VARIABLES <- c(NON.SRM.VARIABLES, "Partner", "p.id", "a.id")
+    SRM.Columns <- colnames(select(longInput, 
+                                   -c(NON.SRM.VARIABLES, ignoredVariables)))
+    
+    # locate the empty rows out of the diagonal, and delete them
+    tmp <- which((longInput$Actor != longInput$Partner) & 
+                             (apply(longInput[, SRM.Columns], 1, function(m) all(is.na(m))) ))
+    longInput <- longInput[-tmp,]
+    
+    # reverse two items - Introversion1 and Safe #3
+    longInput$Introv1 <- 10 - longInput$Introv1
+    longInput$Safe3 <- 10 - longInput$Safe3
+    
+    longInput <- select(longInput, a.id, p.id, SRM.Columns, everything())
+    wideInput <- x
+    
+    # Clean the environment
+    rm(list=setdiff(ls(),c( "longInput", "DataReport", "ipak", "wideInput", "SRM.Columns")))
+
+save.image("JDC.Humility.RawData")
+
+

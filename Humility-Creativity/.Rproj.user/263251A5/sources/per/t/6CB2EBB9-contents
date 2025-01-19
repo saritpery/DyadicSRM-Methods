@@ -1,0 +1,154 @@
+rm(list = ls())                              #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+if (is.null(dev.list()) == FALSE) dev.off()   #Clean Plots
+options(scipen = 15)                          #Avoid scientific notation for up to 10 digits
+
+# Parameters --------------------------------------------------------------
+
+    minGroupSize <- 4       # No of minimum members in a group (usually 4)
+    Max.Miss     <- 100     # No of missing Values allowed in a row 
+    
+    # if TRUE, participants with uniform replies in ALL the fields would be removed
+    Rm_zero_var_replies <- FALSE 
+######---------------- End of parameters input.
+
+
+# IMPORTANT NOTE ABOUT THE INPUT DATA: 
+#
+# This code isn't suitable for reading the data from exported CSV file from 
+# Qualtrics, because the data is formatted differently.
+# For Transformation from csv to Qualtrics-like format, check the 
+# Hekman's data analysis (on Humility)
+
+
+# Utility functions -------------------------------------------------------
+    
+    # ipak function: install and load multiple R packages.
+    # check to see if packages are installed. Install them if they are not, 
+    # then load them into the R session.
+    ipak <- function(pkg){
+        new.pkg <- pkg[!(pkg %in% installed.packages()[, "Package"])]
+        if (length(new.pkg)) 
+            install.packages(new.pkg, dependencies = TRUE)
+        suppressPackageStartupMessages(sapply(pkg, 
+                                              require, character.only = TRUE))
+    }
+    
+    ipak("tidyverse")
+
+    source("read_Qualtrics.R") #By Avi and Nadav Kluger
+    
+    convertLetter2Number <- function(lettersVector){
+        # The function assumes the vector contains all the relevant letters
+        # in consequtive manner (e.g: ABCD, or ABCDE)
+        lettersFactor <- as.factor(LETTERS)
+        lettersVector <- factor(lettersVector, levels = levels(lettersFactor)) 
+        lettersVector <- as.numeric(lettersVector)
+    }
+    
+# Import Qualtrics data ---------------------------------------------------
+
+
+    # Locate the Qualtrics' data:
+    #      1. SurveyID = copy the address of the current survey: from the distribution menu
+    #               in Qualtrics, probably begins with SV_
+    #      2. API token from the = sign Account settings. It's the same token for all surveys in an account. 
+    #      3. dataCenter = fixed for the hewbrew university Qualtrics account.
+
+    Sys.setenv("api_key"    = "6uSGbpue1UW7dfrCda6BJoauMyJFe2pyJI179N7o")  #Sarit
+    #Sys.setenv("api_key"    = "	UT0Dq7E6XR6heyNYWghyBigOA2Q4lwGELZieuyAz") #Avi
+    Sys.setenv("dataCenter" = "az1.qualtrics.com")
+    
+    inputEng <- read_Qualtrics(surveyID = "SV_eRoz0XvETm6go73")
+    inputHeb <- read_Qualtrics(surveyID = "SV_dnku5KyJkrhym21")
+    inputSeminarists <- read_Qualtrics(surveyID = "SV_dhG7da2g1pRxVYO")
+
+# Adjust current survey data ----------------------------------------------
+
+    inputEng <- select(inputEng, -Lang)
+    x <- as.data.frame(rbind(inputEng, inputHeb, inputSeminarists))
+
+    # Fix a specific mistake in group id:
+    x[!is.na(x$Group) & x$Group == 707 & months.Date(x$StartDate) == "July", "Group"] <- 708
+    
+    x <- select(x, -c(StartDate:UserLanguage))   #Delete Qualtrics variables
+    x <- rename(x, group.id = Group)
+    x <- x[which(!is.na(x$group.id)),]           #Delete Rows w/o group id = chose heb language which leaves an empty row in the English survey.
+
+    #join the different actors id into one column. remove the rest of the columns.
+    x$Actor <- apply(x[, c("Letter4", "Letter5", "Letter6")], 1, function(m) sum(m, na.rm = TRUE))
+    
+    #join the know columns into a single column per partner
+    for (i in 1:6) { #for each partner
+      knCol <- grep(paste0("Know.\\_", i), colnames(x))
+      if (length(knCol) > 1) {
+        x$know <- apply(x[,knCol], 1, function(m) sum(m, na.rm = TRUE))
+      } else 
+        if (length(knCol) == 1) x$know <- x[,knCol]
+        colnames(x) <- gsub("know", paste0("Know_", LETTERS[i], "_1"), colnames(x), ignore.case = FALSE)
+        x <- select(x, -knCol)
+    }
+    
+    x <- select(x, group.id, gSize, Actor, everything(), -c("Letter4", "Letter5", "Letter6") )
+
+    #There was a mixup in the groups' numbers. so group 892=219=812.
+    x$group.id[which(x$group.id == 219 | x$group.id == 812)] <- 892
+    x$group.id[which(x$group.id == 204)] <- 240
+    
+    # remove a response of participant B in group 817.
+    # The group consists of 5 persons, she answered regarding 4 participants, and
+    # then she re-filled the questionnaire for all her group.
+    x <- x[ - which(x$group.id == 817 & x$Actor == 2 & x$gSize == 4),]
+    
+    #remove group 111, 112 which were test groups for seminarists
+    x <- x[-which(x$group.id == 111 | x$group.id == 112), ]
+    
+# Simple rr design --------------------------------------------------------
+
+    ignoredVariables  <- c(grep("Self_Hum_.", colnames(x), value = TRUE),
+                           "Age", "Gender", "Mother_Ton", "Tenure")
+    NON.SRM.VARIABLES <- c("group.id", "gSize","Actor")
+    SRM.Columns       <- colnames(select(x, 
+                                         -c(NON.SRM.VARIABLES, ignoredVariables)))
+    SRM.Q.num         <- 13 
+        
+    longInput <- x %>% haven::zap_label() %>% 
+      gather(key = "Question", value = "Value", SRM.Columns) %>% 
+      extract("Question", c("Const", "Partner", "item"), "([[:alnum:]]+)_(.)_(.)") %>% 
+      mutate(item = paste0(Const, item)) %>% 
+      select(-Const) %>% 
+      mutate(Partner = convertLetter2Number(Partner)) %>% 
+      mutate(p.id = paste0(group.id, ":", Partner), 
+             a.id = paste0(group.id, ":", Actor)) %>% 
+      distinct() %>% 
+      # The following row corrects a bug/feature of spread
+      group_by(item) %>% 
+      mutate(i = row_number()) %>% 
+      spread(key = "item", value = "Value") %>% 
+      rename(NonTalk = Introv1, Shy = Introv2) %>% 
+      rename(Know = Know1) %>% 
+      # The following row deletes the index created to overcome the spread error
+      select(-c(i))
+    
+    NON.SRM.VARIABLES <- c(NON.SRM.VARIABLES, "Partner", "p.id", "a.id", "Know")
+    SRM.Columns <- colnames(select(longInput, 
+                                   -c(NON.SRM.VARIABLES, ignoredVariables)))
+    
+    # locate the empty rows out of the diagonal, and delete them
+    tmp <- which((longInput$Actor != longInput$Partner) & 
+                             (apply(longInput[, SRM.Columns], 1, function(m) all(is.na(m))) ))
+    longInput <- longInput[-tmp,]
+    
+    # reverse two items - Introversion1 and Safe #3
+    longInput$NonTalk <- 10 - longInput$NonTalk
+    longInput$Safe3 <- 10 - longInput$Safe3
+    
+    longInput <- select(longInput, a.id, p.id, SRM.Columns, everything())
+    wideInput <- x
+    
+    # Clean the environment
+    rm(list=setdiff(ls(),c( "longInput", "ipak", "wideInput", "SRM.Columns")))
+
+save.image("JDC.Humility.RawData")
+
+

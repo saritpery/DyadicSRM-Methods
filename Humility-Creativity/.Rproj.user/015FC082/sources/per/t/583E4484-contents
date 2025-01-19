@@ -1,0 +1,105 @@
+################################################################################
+
+rm(list = ls())                               #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+if (is.null(dev.list()) == FALSE) dev.off()   #Clean Plots
+options(scipen = 15)                          #Avoid scientific notation 
+                                              # for up to 10 digits
+
+
+# SRM - RR ANALYSIS:
+# ==============================================================================
+
+load("JDC.Humility.ReadyforAnalaysis")
+ipak (c("TripleR", "ggplot2", "data.table", "apaTables", "psych", "tidyverse"))
+
+#TripleR depends on ggplot2; data.table is for rbindlist; gdata for writing
+
+# Univariate Analysis for all variables: 
+# --------------------------------------
+x <- as.data.frame(x)
+
+# fullx <- x
+# x <- rbind(x[x$Partner == 1 & (is.na(x$Know4_1) | x$Know4_1 > 1) & 
+#                (is.na(x$Know5_1) | x$Know5_1 > 1) &
+#                (is.na(x$Know6_1) | x$Know6_1 > 1), ],
+#            x[x$Partner == 2 & (is.na(x$Know4_2) | x$Know4_2 > 1) & 
+#                      (is.na(x$Know5_2) | x$Know5_2 > 1) &
+#                      (is.na(x$Know6_2) | x$Know6_2 > 1), ],
+#            x[x$Partner == 3 & (is.na(x$Know4_3) | x$Know4_3 > 1) & 
+#                      (is.na(x$Know5_3) | x$Know5_3 > 1) &
+#                      (is.na(x$Know6_3) | x$Know6_3 > 1), ], 
+#            x[x$Partner == 4 & (is.na(x$Know4_4) | x$Know4_4 > 1) & 
+#                      (is.na(x$Know5_4) | x$Know5_4 > 1) &
+#                      (is.na(x$Know6_4) | x$Know6_4 > 1), ],
+#            x[x$Partner == 5 &  
+#                      (is.na(x$Know5_5) | x$Know5_5 > 1) &
+#                      (is.na(x$Know6_5) | x$Know6_5 > 1), ],
+#            x[x$Partner == 6 & (is.na(x$Know6_6) | x$Know6_6 > 1), ])
+
+fitH <- RR(H1/H2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitH
+
+fitHCreativity <- RR(H1/H2 + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitHCreativity
+
+fitHContribution <- RR(H1/H2 + Contrib1/Contrib2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitHContribution
+
+fitIntroCreativity <- RR(Introv1/Introv2 + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitIntroCreativity
+
+fitIntroContribution <- RR(Introv1/Introv2 + Contrib1/Contrib2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitIntroContribution
+
+fitShyCreativity <- RR(Introv2/Introv2 + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitShyCreativity
+
+fitShyContribution <- RR(Introv2/Introv2 + Contrib1/Contrib2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitShyContribution
+
+fitShyCreativity <- RR(Introv2/Introv2 + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitShyCreativity
+
+fitNonTalkativeContribution <- RR(Introv1/Introv1 + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitNonTalkativeContribution
+
+fitHSafe <- RR(Sf1/Sf2 + H1/H2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitHSafe
+
+fitSafeCreativity <- RR(Sf1/Sf2 + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitSafeCreativity
+
+fitSafeContrib <- RR(Sf1/Sf2 + Contrib1/Contrib2 ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitSafeContrib
+
+fitShySafe <- RR(Introv2/Introv2 + Sf1/Sf2 ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitShySafe
+
+fitShyH <- RR(Introv2/Introv2 + H1/H2 ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitShyH
+
+# FACTOR ANALYSIS ON THE ACTOR EFFECTS
+# =============================================================================
+# In this test, we want to prove that the items actually represent different 
+#   constructs, even after we only view actor effects.
+#   Ave said We test it for the actor effect only, becaue of the mono-source bias it
+#   suffers from. I think it doesn't make sense.
+#   but maybe it's because the actor effect is confound with the general biases,
+#   and therefore, doesn't necessarily represent a true tendency of the specific
+#   construct.
+#   
+#   To do so, we run these steps: 
+#   1. we define a base model that contains the factors of the items 
+#       in the questionnaire.
+#   2. We define variants of this base model, where we set a covariance of 1
+#       between each two factors, forcing them to represent a combined factor.
+#       this will represent the case where the items of these two factors, 
+#       actually represent a single construct.
+#   3. Then we compare the base model with the joint factors model, hoping 
+#       to see that the base model better represents the sample. (as indeed happend) 
+#   4. We hoped to see the same factorial behavior when doing the same analysis
+#       on the actor effects. The test is performed in file 03_JDC RR Analysis.R.
+
+if (!require('lavaan')) install.packages('lavaan'); library('lavaan')
+if (!require('semPlot')) install.packages('semPlot'); library('semPlot')

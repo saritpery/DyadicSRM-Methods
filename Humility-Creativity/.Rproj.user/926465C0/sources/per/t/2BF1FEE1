@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1605796067083.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "1857995057",
+    "id" : "2BF1FEE1",
+    "lastKnownWriteTime" : 1605804141,
+    "last_content_update" : 1605804141411,
+    "path" : "C:/Users/amichai/Dropbox/HUJI/Michal - Sarit/SRM JDC/JDC Analysis/03_JDC RR Analysis.R",
+    "project_path" : "03_JDC RR Analysis.R",
+    "properties" : {
+        "cursorPosition" : "7,0",
+        "scrollLine" : "0"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 9,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

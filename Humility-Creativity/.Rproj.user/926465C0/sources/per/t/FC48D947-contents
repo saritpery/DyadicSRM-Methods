@@ -1,0 +1,111 @@
+
+
+# SRM - RR ANALYSIS PREPERATIONS #2
+# ==============================================================================
+
+# Prepare parcels and Constructs from parcels
+# -------------------------------------------
+
+# We use the RR function, that can only handle 2 questions per construct 
+# at a time! Hence we need to prepare parcels so that each construct can be 
+# described by 2 parcels.
+
+# Note regarding the order/sort of the data: 
+# The data needs to be sorted by partner and then by actor for the SRM analysis.
+
+rm(list = ls())                               # Clean the Global Environment
+cat ("\014")                                  # Clean the R console
+if (is.null(dev.list()) == FALSE) dev.off()   # Clean Plots
+Alpha.Check <- TRUE # Turn to TRUE in the beginning of work, to verify that the items are right
+
+load("JDC.Humility.RawData") 
+
+ipak("tidyverse")
+if (Alpha.Check) {
+    ipak(c("apaTables", "psych"))
+    const <- c("Contrib", "Cre", "Hum", "Introv", "Safe")
+    for (cst in const) {
+        alphCheckDF <- longInput[, grep(paste0("^",cst), names(longInput))]
+        apa.cor.table(alphCheckDF, show.conf.interval = FALSE)
+        print(alpha(alphCheckDF))
+    }
+
+    
+    # alpha check for self-humility items: 
+    alphCheckDF <- as.data.frame(select(wideInput, starts_with("Self_Hum")))
+    apa.cor.table(alphCheckDF, show.conf.interval = FALSE)
+    alpha(alphCheckDF)
+}
+
+
+
+# Data sets created in this file: 
+# ===============================
+# x  = The main data set created, used for the RR analysis
+# dx = A data set with only single row for each dyad. Used for the APIM analysis
+
+# Here we'll change the assignment if we wish to use different parcels. 
+# The rest of the calculation will remain the same.
+
+# Option 1
+#=========
+
+x <- rowwise(longInput) %>% 
+    mutate(H1 = mean(c(Hum1, Hum3), na.rm = TRUE),
+           H2 = Hum2,
+           Creat1 = mean(c(Cre1, Cre3), na.rm = TRUE),
+           Creat2 = Cre2,
+           Sf1 = mean(c(Safe1, Safe3), na.rm = TRUE),
+           Sf2 = Safe2,
+           HSelf = mean(c(Self_Hum_1, Self_Hum_2, Self_Hum_3), na.rm = TRUE))
+           
+x <- x[order(x$p.id,x$a.id),]
+
+
+# Option 2
+# ---------
+x <- rowwise(longInput) %>% 
+    mutate(H1 = mean(c(Hum1, Hum3), na.rm = TRUE),
+           H2 = Hum2,
+           Creat1 = mean(c(Cre1, Cre3), na.rm = TRUE),
+           Creat2 = Cre2,
+           Sf1 = Safe1,
+           Sf2 = Safe2,
+           HSelf = mean(c(Self_Hum_1, Self_Hum_2, Self_Hum_3), na.rm = TRUE))
+
+x <- x[order(x$p.id,x$a.id),]
+
+x <- select(x, a.id, p.id, H1, H2, Creat1, Creat2, Contrib1, Contrib2, Sf1, Sf2, Introv1, Introv2, HSelf, everything())
+
+##################################
+    # we'll compute dx = dyadic x, where we'll add for each dyad the dyadic ratings in the same row
+    
+    # Next two lines produced error.  AVI fixed with the following dx defintion
+    
+    # dx <- x[,c("group.id","actor.id","partner.id","H.Raw")]
+    # names(dx) <- gsub("Raw","ij",names(dx))
+    # names(dx) <- gsub("actor","i",names(dx))
+    # names(dx) <- gsub("partner","j",names(dx))
+    # 
+    # #remove NAs from non self report
+    # dx <- dx[-which(dx$i.id == dx$j.id),] #when i=j, the rating is NA.
+    # #put place holders for each construct (temporary)
+    # dx$H.ji <- dx$H.ij
+    # # add the dyadic result in the same raw:
+    # for (l in 1:nrow(dx)) {
+    #     # l <- 1
+    #     if (l > nrow(dx)) break() # since we delete the rows of the dyad the row no will shorten
+    #     i <- dx$i.id[l]
+    #     j <- dx$j.id[l]
+    #     co.line <- which(dx$j.id == i & dx$i.id == j)
+    #     dx$H.ji[l]  <- dx$H.ij[co.line]
+    #     dx <- dx[-co.line,] # keep only one row for each dyad
+    # }
+###################################
+ 
+
+# clean the environment     
+rm(list = c("Alpha.Check"))
+
+
+save.image("JDC.Humility.ReadyforAnalaysis")

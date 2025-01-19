@@ -1,0 +1,33 @@
+{
+    "id": "C437D740",
+    "path": null,
+    "project_path": null,
+    "type": "r_dataframe",
+    "hash": "0",
+    "contents": "",
+    "dirty": false,
+    "created": 1628070434632.0,
+    "source_on_save": false,
+    "relative_order": 11,
+    "properties": {
+        "expression": "wideInput",
+        "caption": "wideInput",
+        "totalObservations": "219",
+        "displayedObservations": "219",
+        "variables": "94",
+        "cacheKey": "F1E4E4B5",
+        "object": "wideInput",
+        "environment": "",
+        "contentUrl": "grid_resource/gridviewer.html?env=&obj=wideInput&cache_key=F1E4E4B5&max_cols=50",
+        "preview": "0",
+        "Source": "Source"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 7143307332886346274,
+    "encoding": "",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1628070434632,
+    "read_only": false,
+    "read_only_alternatives": []
+}

@@ -1,0 +1,70 @@
+################################################################################
+
+rm(list = ls())                               #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+if (is.null(dev.list()) == FALSE) dev.off()   #Clean Plots
+options(scipen = 15)                          #Avoid scientific notation 
+                                              # for up to 10 digits
+
+fullRRData <- TRUE    # Set to TRUE if we imitate the data sent for analysis in SOREMO
+                      # Set to FALSE if we use the entire data set as collected
+                      # (decision to use 30 teams or all collected data is done
+                      # in the 01_JDC ReadQualtrics.R file)
+
+# SRM - RR ANALYSIS:
+# ==============================================================================
+
+if(fullRRData) load("JDC.Humility.FullRR.ReadyforAnalaysis") else
+  load("JDC.Humility.ReadyforAnalaysis")
+
+ipak (c("TripleR", "ggplot2", "data.table", "apaTables", "psych", "tidyverse",
+        "lavaan", "semPlot"))
+
+x <- as.data.frame(x)
+
+# FACTOR ANALYSIS ON THE ACTOR EFFECTS
+# =============================================================================
+# The actor effect is confounded with the general biases,
+#   and therefore, doesn't necessarily represent a true tendency of the specific
+#   construct.
+#   
+#   To test it, we run these steps: 
+#   1. we define a base model that contains the factors of the items 
+#       in the questionnaire.
+#   2. We define variants of this base model, where we set a covariance of 1
+#       between each two factors, forcing them to represent a combined factor.
+#       this will represent the case where the items of these two factors, 
+#       actually represent a single construct.
+#   3. Then we compare the base model with the joint factors model, curious 
+#       to see if the base model better represents the sample. (as currently
+#       does not happen). 
+
+# extract all items actor effects
+apEffects <- getEffects(~ a.id*p.id | group.id, data = x, 
+                        varlist = c("Hum1","Hum2", "Hum3", "Cre1","Cre2", "Cre3",
+                                    "Contrib1","Contrib2", 
+                                    "Safe1","Safe2", "Safe3", "nonTalk","shy"))
+# Step1: define the base model:
+  m0 <- 'H =~ Hum1.a + Hum2.a + Hum3.a
+    Sf =~ Safe1.a + Safe2.a 
+    Contrib =~ Contrib1.a + Contrib2.a
+    Creat =~ Cre1.a + Cre2.a + Cre3.a'
+  fit0 <- sem(m0, data = apEffects)
+
+# Step2: define the variants of the model
+  fitHSf <- update(fit0, add =  'H ~~ 1*Sf') # humility & psychological safety aren't distinguishable
+  fitHCont <- update(fit0, add =  'H ~~ 1*Contrib') # humility & contribution
+  fitHCreat <- update(fit0, add =  'H ~~ 1*Creat')  # humility & creativity
+  fitContrCreat <- update(fit0, add =  'Contrib ~~ 1*Creat')
+  fitContrSf <- update(fit0, add =  'Contrib ~~ 1*Sf')
+  fitCreatSf <- update(fit0, add =  'Creat ~~ 1*Sf')
+# Step3: compare the models with the base model: 
+  anova(fit0, fitHSf)
+  anova(fit0, fitHCont)
+  anova(fit0, fitHCreat)
+  anova(fit0, fitHSf)
+  anova(fit0, fitContrCreat)
+  anova(fit0, fitContrSf)
+  anova(fit0, fitCreatSf)
+
+  

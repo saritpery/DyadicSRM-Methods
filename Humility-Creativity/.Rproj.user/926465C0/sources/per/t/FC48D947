@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1605707909423.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "3514458272",
+    "id" : "FC48D947",
+    "lastKnownWriteTime" : 1605804141,
+    "last_content_update" : 1605804141364,
+    "path" : "C:/Users/amichai/Dropbox/HUJI/Michal - Sarit/SRM JDC/JDC Analysis/02_JDC Prepare parcels.R",
+    "project_path" : "02_JDC Prepare parcels.R",
+    "properties" : {
+        "cursorPosition" : "110,44",
+        "scrollLine" : "89"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 8,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}

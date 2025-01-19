@@ -1,0 +1,27 @@
+{
+    "id": "C7700FF3",
+    "path": "C:/Users/sarit/Dropbox/HUJI/Avi - Sarit/PHD Analyses/Humility Performance JDC dyadic plus individuals/68_phdHumPerf Function Bond Malloy scores calculations.R",
+    "project_path": "68_phdHumPerf Function Bond Malloy scores calculations.R",
+    "type": "r_source",
+    "hash": "1340575755",
+    "contents": "",
+    "dirty": false,
+    "created": 1736808738854.0,
+    "source_on_save": false,
+    "relative_order": 3,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "234,62",
+        "scrollLine": "219"
+    },
+    "folds": "15|59|203|0|\n53|19|66|4|\n",
+    "lastKnownWriteTime": 1736813256,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1736813256844,
+    "read_only": false,
+    "read_only_alternatives": []
+}

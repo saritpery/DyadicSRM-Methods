@@ -1,0 +1,125 @@
+rm(list = ls())                               # Clean the Global Environment
+if (is.null(dev.list()) == FALSE) dev.off()   # Clean Plots
+cat ("\014")                                  # Clean the R console
+
+#-------------------------------------------------------------------------------
+# THIS FILE READS RAW DATA FROM QUALTRICS AND ADJUSTS THE SURVEY DATA.
+#     CONVERTION OF QUESTIONS TO ROUND-ROBIN DESIGN IS IN FILE 02_ReshapeData.R
+#     HANDLING MISSING VALUES IS IN FILE 01_EDA.R
+#-------------------------------------------------------------------------------
+
+# source("https://raw.githubusercontent.com/avi-kluger/Qualtrix/master/read_Qualtrics.R")
+source("read_Qualtrics.R")
+
+Sys.setenv("api_key"    = "6uSGbpue1UW7dfrCda6BJoauMyJFe2pyJI179N7o")  #Sarit
+#Sys.setenv("api_key"    = "	UT0Dq7E6XR6heyNYWghyBigOA2Q4lwGELZieuyAz") #Avi
+Sys.setenv("dataCenter" = "az1.qualtrics.com")
+
+# x   <- read_Qualtrics("SV_3KrWbPuTWhdE5P7")
+x <- read_Qualtrics("SV_cOBgJxouuAYfu0R")
+names(x)
+
+qualtricsColumns <- grep("StartDate", names(x)): grep("UserLanguage", names(x))
+
+# Check consistency between Qualtrics presentation of names to participants and R code
+
+# An example of Qualtrics code
+# I listen attentively to ${q://QID31/ChoiceTextEntryValue}							
+# ${q://QID31/ChoiceTextEntryValue} listens attentively to me							
+# ${q://QID31/ChoiceTextEntryValue} listens attentively to ${q://QID32/ChoiceTextEntryValue}							
+# ${q://QID32/ChoiceTextEntryValue} listens attentively to ${q://QID31/ChoiceTextEntryValue}							
+# ${q://QID32/ChoiceTextEntryValue} listens attentively to me							
+# ${q://QID31/ChoiceTextEntryValue} listens attentively to ${q://QID33/ChoiceTextEntryValue}							
+# ${q://QID33/ChoiceTextEntryValue} listens attentively to ${q://QID32/ChoiceTextEntryValue}							
+# ${q://QID33/ChoiceTextEntryValue} listens attentively to me							
+# ${q://QID32/ChoiceTextEntryValue} listens attentively to ${q://QID33/ChoiceTextEntryValue}							
+# I listen attentively to ${q://QID32/ChoiceTextEntryValue}							
+# I listen attentively to ${q://QID33/ChoiceTextEntryValue}							
+# ${q://QID33/ChoiceTextEntryValue} listens attentively to ${q://QID31/ChoiceTextEntryValue}	
+
+# Fetch columns of scale items; You can safely ignore the warning
+q <- c(grep("FA_Attentive_1", names(x)) : grep("FA_Interest_13", names(x)),
+       grep("FR_Attentive_1", names(x)) : grep("FA_EVOS_10", names(x)))
+
+# Split the long Qualtrics label and drop the common stems of all items
+if(!require(sjlabelled)) {install.packages("sjlabelled"); require(sjlabelled)}
+MyLabels        <- strsplit(get_label(x[, q]), "- ")
+MyLabels        <- sapply(MyLabels, "[", 2)
+
+# Substitute Qualtrics codes with letters
+MyLabels        <- gsub("QID31-ChoiceTextEntryValue", "B", MyLabels)
+MyLabels        <- gsub("QID32-ChoiceTextEntryValue", "C", MyLabels)
+MyLabels        <- gsub("QID33-ChoiceTextEntryValue", "D", MyLabels)
+MyLabels        <- gsub("QID46-ChoiceTextEntryValue", "B", MyLabels)
+MyLabels        <- gsub("QID47-ChoiceTextEntryValue", "C", MyLabels)
+MyLabels        <- gsub("QID48-ChoiceTextEntryValue", "D", MyLabels)
+names(MyLabels) <- NULL
+set_label(x[q]) <- MyLabels
+MyLabels
+
+MyVarNames        <- strsplit(names(x[, q]), "_")
+
+names(x)[q] <- paste0(sapply(MyVarNames, "[", 1), ".", 
+                      sapply(MyVarNames, "[", 2), "_",
+                      sapply(MyVarNames, "[", 3))
+# Change x from tibble to data frame to avoid later clashes with TripleR
+x <- as.data.frame(x[, -qualtricsColumns])
+
+# Drop consent item
+x <- select(x, -"Informed_Consent")
+
+# rename the first name of Family member items
+names(x)[grep("Demo_Birth_1", names(x))] <- "Age"
+x$FM_B <- x$FR_B <- "B"
+x$FM_C <- x$FR_C <- "C"
+x$FM_D <- x$FR_D <- "D"
+
+names(x)
+myLabels <- get_label(x)
+myLabels <- gsub("Please enter the first name \\(or recognizable nickname\\) of ", "", myLabels)
+myLabels
+
+x$group.id <- 1:nrow(x)
+
+#now we will calculate the prolific report, and remove attention check columns.
+
+###############################################################################
+##                            PROLIFIC REPORT
+###############################################################################
+
+# use only valid prolific ids or email address
+
+  isValidEmail <- function(x) {
+    grepl("\\<[A-Z0-9._%+-]+@[A-Z0-9.-]+\\.[A-Z]{2,}\\>", as.character(x), 
+          ignore.case=TRUE)}
+  
+  pr <- x[which(nchar(x$Prolific_ID) == 24), ]
+  pr <- rbind(pr, x[which(isValidEmail(x$Prolific_ID)), ])
+  idsExcluded <- x[which (!(x$Prolific_ID %in% pr$Prolific_ID)), "Prolific_ID"]
+
+# Check the attention check questions
+  attCheck <- c("FA.Interest_13", "FR.Attentive_13")
+  pr <- pr[, c("Prolific_ID", attCheck)]
+  pr$attentionFail <- (pr[, attCheck[1]] != 2) | (pr[, attCheck[2]] != 5) | 
+    is.na(pr[, attCheck[1]]) | is.na(pr[, attCheck[2]])
+
+  x <- left_join(x, pr[, c("Prolific_ID", "attentionFail")], by = "Prolific_ID")
+  
+# Save the prolific report files:
+  write.csv(pr[which(pr$attentionFail), "Prolific_ID"], "FailedParticipants.csv", row.names = FALSE)
+  write.csv(pr[which(!pr$attentionFail), "Prolific_ID"], "ApprovedParticipants.csv", row.names = FALSE)
+  write.csv(pr[, c("Prolific_ID", "attentionFail")], "ProlificData.csv", row.names = FALSE)
+  write.csv(idsExcluded, "idsExcluded.csv")
+
+###############################################################################
+##                      SAVE THE DATA CSV FILES
+###############################################################################
+
+  x <- select(x, -attCheck)
+  # write.csv(x, "idiographicRIC2020.csv", row.names = FALSE)
+  # write.csv(myLabels, "idiographicRIC2020Labels.csv", row.names = FALSE)
+  rm(list=setdiff(ls(), c("x", "myLabels")))
+  save.image("RICListeningBasic.Rdata")
+  
+
+

@@ -1,0 +1,144 @@
+rm(list = ls())                               #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+
+load("JDCHumilityReadyforAPIM")
+
+
+# prepare the data (mainly add dummy codes)
+#==========================================
+
+  # Scale all relationship effects columns and all rating columns
+  relCols <- grep("\\.AB|\\.BA", names(pw)) # The effects columns
+  pw[,relCols] <- apply(pw[,relCols], 2, function(a) {as.numeric(scale(a))})
+ 
+  pw$p.id <- as.factor(pw$p.id)
+  pw$a.id <- as.factor(pw$a.id)
+  pw$group.id <- as.factor(pw$group.id)
+  
+  # Create dummy codes using model.matrix.
+  # The dummy codes are inserted directly into a column in the dataset.
+  # It keeps the dataset tidy, and enables us to call it in a single name
+  # during the HLM analysis. 
+  # However, I found it very difficult to handle, and so, I defined the 
+  # the dummy codes also seperately as regular data frames, to verify it works right.
+  pw$aDum <- model.matrix(~pw$a.id)
+  pw$pDum <- model.matrix(~pw$p.id)
+  aDum <- as.data.frame(model.matrix(~pw$a.id))
+  pDum <- as.data.frame(model.matrix(~pw$p.id))
+
+  
+  #To avoid singularity we drop one dummy for Actor and we drop one per group for
+  #Partner. 
+  aDum <- aDum[,-1] 
+  pDum <- pDum[,-1]
+  
+  # for each group, we'll chose a single p.id value to drop from the pDum variables.
+  temp <- pw[!duplicated(pw$group.id), c("group.id", "p.id")]
+  temp$dummyCode <- paste0("pw$p.id", temp$p.id)
+  pDum <- pDum[,!(names(pDum) %in% temp$dummyCode)]
+  
+  
+  # Add the dummy codes into the dataset:
+  # --------------------------------------
+  # option 1: 
+  # Add the dummy codes in a hidden manner, so it will show as a single column:
+  # r handles it very well, and it keeps the rest of the data nit.
+  pw$aDum <- as.matrix(aDum)
+  pw$pDum <- as.matrix(pDum)
+  
+  # Option 2:
+  # Add the dummy codes as seperate columns in the data set.
+  # I found it more intuitive, but it makes the data set less managable.
+  pw <- cbind(pw, aDum, pDum)
+  names(pw) <- gsub("pw\\$", "", names(pw))
+  
+  # test the number of rows for each dummy code. it should be 3-5 in correlation
+  # with group sizes of 4-6 in our sample.
+  table(apply(pw[,grep("\\:", names(pw))], 2, sum))
+  
+  
+  # Begin APIM analysis:
+  # ======================
+  
+  library(TripleR)
+  library(nlme)
+  
+  # Find the construct names: (I'm lazy that way)
+  relVars <- grep("_rel", names(pw))
+  rawVars <- grep(".AB", names(pw)[-relVars], value = TRUE)
+  rawVars <- gsub(".AB", "", rawVars)
+  
+  fullResults <- data.frame()
+  for(DVi in 1:length(rawVars)) {
+    CounterIV <- 1 # Indicates that it's now the first IV for the specific DV.
+    for(IVi in 1:length(rawVars)) {
+      if (IVi != DVi) {
+        if (CounterIV == 1) {
+          displayf <- paste0(rawVars[DVi], ".AB ~ ", rawVars[IVi], ".AB + ",
+                             rawVars[IVi], ".BA")
+        } else displayf <- paste0(displayf, " + ", rawVars[IVi], ".AB + ",
+                                  rawVars[IVi], ".BA")
+        
+        f <- as.formula(paste0(displayf, " + aDum + pDum"))
+        t <- try(fit <- gls(f, na.action = na.omit, method = "REML", 
+                            verbose = TRUE,
+                            correlation = corCompSymm (form = ~1|dyad),
+                            data = cbind(pw)))
+        if (!"try-error" %in% class(t)) {
+          res <- round(data.frame(summary(fit)$tTable[2:(1 + 2*CounterIV),]), 2)
+          res$DV <- rawVars[DVi]
+          res$IV <- rownames(res)
+          res <- relocate(res, DV, IV)
+          res$model <- displayf
+          fullResults <- rbind(fullResults, res)
+          CounterIV <- CounterIV + 1
+        }}}}
+      rownames(fullResults) <- NULL
+      
+      write.csv(fullResults, "JDC_Dyadic_APIM.csv")
+      
+      
+                #  fit <- gls(Creat.BA ~ Hum.AB + Hum.BA + aDum + pDum, 
+ #             na.action = na.omit, method = "REML", verbose = TRUE,
+ #             correlation = corCompSymm (form = ~1|dyad),
+ #             data = cbind(pw))
+ #          
+ #  round(data.frame(summary(fit)$tTable[2:7,]), 2)
+ #  
+ #  fit <- gls(Creat.BA ~ Safety.AB + Safety.BA + aDum + pDum, 
+ #             na.action = na.omit, method = "REML", verbose = TRUE,
+ #             correlation = corCompSymm (form = ~1|dyad),
+ #             data = cbind(pw))
+ #  fit <- gls(Creat.BA ~ Safety.AB + Safety.BA + Hum.AB + Hum.BA + aDum + pDum, 
+ #             na.action = na.omit, method = "REML", verbose = TRUE,
+ #             correlation = corCompSymm (form = ~1|dyad),
+ #             data = cbind(pw))
+ #  fit <- gls(Safety.AB ~ Hum.AB + Hum.BA + aDum + pDum, 
+ #             na.action = na.omit, method = "REML", verbose = TRUE,
+ #             correlation = corCompSymm (form = ~1|dyad),
+ #             data = cbind(pw))
+ #  fit <- gls(Safety.AB ~ Creat.AB + Creat.BA + aDum + pDum, 
+ #             na.action = na.omit, method = "REML", verbose = TRUE,
+ #             correlation = corCompSymm (form = ~1|dyad),
+ #             data = cbind(pw))
+ #  fit <- gls(Safety.AB ~ Hum.AB + Hum.BA + Creat.AB + Creat.BA + aDum + pDum, 
+ #             na.action = na.omit, method = "REML", verbose = TRUE,
+ #             correlation = corCompSymm (form = ~1|dyad),
+ #             data = cbind(pw))
+ #  fit <- gls(Hum.BA ~ Safety.AB + Safety.BA + Creat.AB + Creat.BA + aDum + pDum, 
+ #             na.action = na.omit, method = "REML", verbose = TRUE,
+ #             correlation = corCompSymm (form = ~1|dyad),
+ #             data = cbind(pw))
+ # fit <- gls(Safety.AB ~ Hum.AB + Hum.BA + aDum + pDum, 
+ #             na.action = na.omit, method = "REML", verbose = TRUE,
+ #             correlation = corCompSymm (form = ~1|dyad),
+ #             data = cbind(pw))
+ #  fit <- gls(Contrib.BA ~ Safety.AB + Safety.BA + Hum.AB + Hum.BA + aDum + pDum, 
+ #             na.action = na.omit, method = "REML", verbose = TRUE,
+ #             correlation = corCompSymm (form = ~1|dyad),
+ #             data = cbind(pw))
+ #  fit <- gls(Contrib.BA ~ Hum.AB + Hum.BA + aDum + pDum, 
+ #             na.action = na.omit, method = "REML", verbose = TRUE,
+ #             correlation = corCompSymm (form = ~1|dyad),
+ #             data = cbind(pw))
+ #  

@@ -1,0 +1,65 @@
+rm(list = ls())                               #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+
+load("main.RImage")
+load(imgName(".FullRR.Pairwise"))
+
+keepls <- ls()
+ipak (c("TripleR", "apaTables", "tidyverse"))
+RR.style("perception")
+
+x <- as.data.frame(x)
+
+# Extract actor/partner effects with grand mean.
+vlist <- c("H1/H2", "Creat1/Creat2", "Contrib1/Contrib2", 
+           "Sf1/Sf2",  "NonTalk/NonTalk","Shy/Shy")
+
+cn <- length(vlist)
+
+reliabilities.p <- reliabilities.t <- reliabilities <- c()
+fits <- biFits <- list()
+biCor <- data.frame(matrix(nrow = cn*2, ncol = cn*2))
+names(biCor) <- paste0(rep(varnames, each = 2), c(".p", ".t"))
+rownames(biCor) <- names(biCor)
+
+for (i in 1:length(vlist)) {
+  # For every constuct collect all data from uniVariate and biVariate analyses
+  ci <- vlist[i]
+  fit <- RR(as.formula(paste(ci, "~ a.id*p.id | group.id")), 
+            data = x, gm = TRUE)
+  fits[[i]] <- fit
+  varCompi <- fit$varComp
+  varCompi$Const <- varnames[i]
+  biCor[i*2-1,i*2] <- varCompi[5, "standardized"]
+  if (i == 1) varComp <- varCompi else varComp <- rbind(varComp, varCompi)
+  #extract reliabilities
+  f1.p <- fit$effects[grep("\\.p", names(fit$effects))]
+  rel.p <- attributes(f1.p[,1])$reliability
+  f1.t <- fit$effects[grep("\\.t", names(fit$effects))]
+  rel.t <- attributes(f1.t[,1])$reliability
+  reliabilities.p <- c(reliabilities.p, rel.p)
+  reliabilities.t <- c(reliabilities.t, rel.t)
+  reliabilities <- c(reliabilities, rel.p, rel.t)
+  
+  # bivariate analyses
+  for (j in (i+1):length(vlist)) {
+    if (i == length(vlist)) next()
+    cj <- vlist[j]
+    fit <- RR(as.formula(paste(ci, "+", cj, "~ a.id*p.id | group.id")), 
+              data = x, varlist = vlist, gm = TRUE)
+    biCompij <- fit$bivariate
+    biCompij$const1 <- varnames[i]
+    biCompij$const2 <- varnames[j]
+    if (i == 1 & j == 2) biComp <- biCompij else biComp <- rbind(biComp, biCompij)
+    ip <- i*2 - 1 ; it <- i*2
+    jp <- j*2 - 1; jt <- j*2
+    biCor[ip, jp] <- biCompij[1,"standardized"]
+    biCor[it, jt] <- biCompij[2,"standardized"]
+    biCor[ip, jt] <- biCompij[3,"standardized"]
+    biCor[it, jp] <- biCompij[4,"standardized"]
+  }
+}
+
+rm(list = setdiff(ls(), c(keepls, "biComp", "biCor", "biFits", "varComp", 
+                       "reliabilities", "reliabilities.p", "reliabilities.t")))
+save.image(imgName("SRMoutputs"))

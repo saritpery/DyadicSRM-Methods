@@ -1,0 +1,88 @@
+rm(list = ls())                               #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+
+load("main.RImage")
+load(imgName(".FullRR.ReadyforAPIM"))
+
+# Define an APIM analysis and display function 
+# ==============================================
+  ipak(c("TripleR", "nlme"))  
+
+  # The showAPIM function, receives a DV construct, and the list of IV constructs,
+  # it builds the model and prints the output w/o the dummy codes rows.
+  # it returns the fit to enable further investigation.
+  showAPIM <- function(dv = varnames[1], iv = varnames[2]){
+    
+    # prepare the formula:
+    ivs <- paste0(rep(iv, each = 2), 
+                  rep(c("_rel.AB ", "_rel.BA" ), length(iv)),
+                  collapse = " + ")
+    displayf <- paste0(dv, "_rel.AB ~ ", ivs)
+    f <- as.formula(paste0(displayf, " + aDum + pDum"))
+    
+    # run the analysis:
+    # obviously, some formulas won't converge. the following use of 'try'
+    # enables to continue the run even if the model calculation failed.
+    t <- try(fit <- gls(f, na.action = na.omit, method = "REML", 
+                        verbose = TRUE,
+                        correlation = corCompSymm (form = ~1|dyad),
+                        data = cbind(pw)))
+    
+    # print the results, return the fit if converged, and finish.
+    
+    # print a header with the model's formula
+    header <- "APIM analysis for the dyadic level model: "
+    cat(paste0(header, "\n",
+               paste0(rep("=", nchar(header)), collapse = ""),
+               "\nTHE MODEL: \n",
+               displayf, "\n\n"
+    ))
+    
+    if (!"try-error" %in% class(t)) {
+      print(round(data.frame(summary(fit)$tTable[2:(1 + 2 * length(iv)),]), 2))
+      return(fit)
+    } else {print("Model does not converge for the data")}
+  
+  } # end of showAPIM function
+
+  
+# creativity analyses:
+# ============================================
+# test the main hypothesis
+  fit <- showAPIM("Creat", "Hum")
+  fit <- showAPIM("Creat", c("Safety", "Hum"))
+  fit <- showAPIM("Creat", c("Safety"))
+  fit <- showAPIM("Safety", "Hum")
+
+# test for the opposite causality
+  fit <- showAPIM("Hum", c("Safety"))
+  
+  fit <- showAPIM("Hum", "Creat")
+  fit <- showAPIM("Hum", c("Safety", "Creat"))
+  fit <- showAPIM("Safety", "Creat")
+  fit <- showAPIM("Safety", c("Hum", "Creat"))
+
+# contribution analysis:
+# ============================================
+  
+  # test the main hypothesis
+  fit <- showAPIM("Contr", "Hum")
+  fit <- showAPIM("Contr", c("Safety", "Hum"))
+  fit <- showAPIM("Contr", c("Safety"))
+  fit <- showAPIM("Safety", "Hum")
+  
+  # test for the opposite causality
+  fit <- showAPIM("Hum", c("Safety"))
+  fit <- showAPIM("Hum", "Contr")
+  fit <- showAPIM("Hum", c("Safety", "Contr"))
+  fit <- showAPIM("Safety", "Contr")
+  fit <- showAPIM("Safety", c("Hum", "Contr"))
+
+## test for alternative effects - Introversion
+## =============================================
+  fit <- showAPIM("Shy", c("Safety"))
+  fit <- showAPIM("Shy", c("Safety", "Hum"))
+  
+  fit <- showAPIM("NonTalk", c("Safety"))
+  fit <- showAPIM("NonTalk", c("Safety", "Hum"))
+  

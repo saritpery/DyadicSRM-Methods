@@ -1,0 +1,80 @@
+################################################################################
+
+rm(list = ls())                               #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+if (is.null(dev.list()) == FALSE) dev.off()   #Clean Plots
+options(scipen = 15)                          #Avoid scientific notation 
+                                              # for up to 10 digits
+
+
+# SRM - RR ANALYSIS:
+# ==============================================================================
+
+load("JDC.Humility.ReadyforAnalaysis")
+ipak (c("TripleR", "ggplot2", "data.table", "apaTables", "psych", "tidyverse"))
+
+#TripleR depends on ggplot2; data.table is for rbindlist; gdata for writing
+
+# Univariate Analysis for all variables: 
+# --------------------------------------
+x <- as.data.frame(x)
+
+fitH <- RR(H1/H2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitH
+
+fitHCreativity <- RR(H1/H2 + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitHCreativity
+
+fitHContribution <- RR(H1/H2 + Contrib1/Contrib2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitHContribution
+
+fitIntroCreativity <- RR(Introv1/Introv2 + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitIntroCreativity
+
+fitHSafe <- RR(Sf1/Sf2 + H1/H2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitHSafe
+
+fitSafeCreativity <- RR(Sf1/Sf2 + Creat1/Creat2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitSafeCreativity
+
+fitSafeContrib <- RR(Sf1/Sf2 + Contrib1/Contrib2     ~ a.id*p.id | group.id, data = x, na.rm = TRUE)
+fitSafeContrib
+
+# look into the actor and partner effects - and self: 
+# --------------------------------------------------
+# Self and others within groups
+        APEffec <- fit$effects
+        
+        # These are the self scores centered and standardized within each group
+        selfEffect  <- fitSelf$effects
+        APEffec <- right_join(APEffec, select(selfEffect, id, HSelf.a), by = "id")
+        
+        # The correlation between self report and actor score - all within the group
+        cor.test (APEffec$H1.a, APEffec$HSelf.a)
+        
+        # The correlation between self report and partner score - all within the group
+        # since there is no significant partner effect,the correlation between
+        # self ratings, and how others rate the self-rater is non-significant
+        cor.test (APEffec$H1.p, APEffec$HSelf.a)
+
+# Self and others with no group refference (not standardize)
+        HumSelf <- select(x, actor.id, HSelf) %>% rename(id = actor.id) %>% 
+            distinct()
+        HumActor <- x %>% group_by(actor.id) %>% 
+            summarise(actorH = mean(GeneralHum, na.rm = TRUE)) %>% 
+            rename(id = actor.id)
+        HumPartner <- x %>% group_by(partner.id) %>% 
+            summarise(partnerH = mean(GeneralHum, na.rm = TRUE)) %>% 
+            rename(id = partner.id)
+        HumSelfAnalysis <- right_join(HumActor, HumPartner, by = "id" ) %>% 
+            right_join(HumSelf, by = "id")
+        cor.test(HumSelfAnalysis$HSelf, HumSelfAnalysis$actorH)
+        cor.test(HumSelfAnalysis$HSelf, HumSelfAnalysis$partnerH)
+        
+# Calculate how many dyadic ratings we have...
+
+        m <- unique(select(x, group.id, actor.id))
+        m <- as.numeric( table(m$group.id))
+        DataReport$dyadicRatings <- sum(m*(m-1) / 2)
+        
+        

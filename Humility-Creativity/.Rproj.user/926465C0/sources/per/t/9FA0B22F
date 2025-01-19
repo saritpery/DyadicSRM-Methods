@@ -1,0 +1,25 @@
+{
+    "collab_server" : "",
+    "contents" : "",
+    "created" : 1605799568129.000,
+    "dirty" : false,
+    "encoding" : "UTF-8",
+    "folds" : "",
+    "hash" : "137879695",
+    "id" : "9FA0B22F",
+    "lastKnownWriteTime" : 1605804141,
+    "last_content_update" : 1605804141345,
+    "path" : "C:/Users/amichai/Dropbox/HUJI/Michal - Sarit/SRM JDC/JDC Analysis/01_JDCReadQualtrics.R",
+    "project_path" : "01_JDCReadQualtrics.R",
+    "properties" : {
+        "cursorPosition" : "196,34",
+        "scrollLine" : "177"
+    },
+    "read_only" : false,
+    "read_only_alternatives" : [
+    ],
+    "relative_order" : 4,
+    "source_on_save" : false,
+    "source_window" : "",
+    "type" : "r_source"
+}
