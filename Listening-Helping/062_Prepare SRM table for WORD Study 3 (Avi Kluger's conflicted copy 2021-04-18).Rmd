@@ -1,0 +1,120 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+\fontfamily{cmr}
+\fontsize{12}{22}
+\fontseries{b}
+\selectfont 
+
+Table 11. 
+
+*Study 3: SRM Estimates of Latent Listening, Intimacy, Speaking, and Helping OCB*
+
+```{r, echo=FALSE}
+rm(list = ls())                               #Clean the Global Environment
+cat ("\014")                                  #Clean the R console
+
+# Before running this section: Run the data creation processes, according to the README file
+
+load("Study3ReadyforAnalaysis")
+
+
+# SRM ----------------------------------------------------------------
+library(ggplot2)                                    # Loading for TripleR required package: ggplot2
+suppressWarnings(library(TripleR, suppressPackageStartupMessages() )) # Suppres Loading required package: ggplot2;
+
+suppressMessages(library(knitr))
+suppressMessages(library("weights"))
+
+LatentSRM <- function (a , b,  x) {
+    # LatentSRM takes a univariate and produce a formatted table of the RR analysis.
+    # a = First  parcel/variable describing the construct
+    # b = Second parcel/variable describing the construct
+    # x = The full data in which there are columns 'a' and 'b'
+
+    fit <- RR(a/ b ~ actor.id * partner.id | group.id , data=x, na.rm=TRUE, verbose=FALSE)
+    assign("fit", fit, envir=globalenv()) #Make fit available outside the function
+    tab <- fit$varComp [, c(1, 2, 4, 3, 6, 7)]
+    is.nan.data.frame <- function(x)      #Replace NaN's with 0
+        do.call(cbind, lapply(tab, is.nan))
+        tab[is.nan(tab)] <- 0
+    tab$t.value  <- sprintf("%.2f", round (tab$t.value, 2))
+    tab$p.value  <- round (ifelse(tab$p.value < .001, .001, tab$p.value), digits= 3)
+    tab$p.value  [-4] <- rd(tab$p.value[-4], digits = 3)
+    tab$standardized [1:4] <- sprintf("%.1f", round(tab$standardized [1:4] *100, digits =3))
+    tab$standardized [1:4] <- paste0(tab$standardized [1:4], "%")
+
+    tab[, 2:3]    <- round(tab[ ,2:3],3  )
+    
+    Rel <- capture.output(cat(print((fit)))) [15:17]
+    Rel <- gsub(NaN, .000, Rel)         #Replace NaN's with 0
+    Rel <- rd(as.numeric(sub(".*:", "", Rel)))
+    tab$Reliability  <- c(Rel, rep("", 3))
+    
+    colnames(tab) <- c("SRM component", "Raw estimate", "SE of estimate", "Std. estimate", "t", "p", "Reliability")
+    tab  <- tab[, c(1, 7, 2:6)]
+    tab[4, c(4, 6, 7)] <- ""
+    
+    #Replace zero variances with - sign
+    NAcol <- c(2, 4, 6: 7)
+    for (j in 1:3) {
+    for (i in NAcol) tab[j, i] <- ifelse (tab[j, 3] < 0, "-", tab[j, i])
+    }
+     #Replace zero correlations with - sign
+    NAcol <- c(6:7, 4) #Change col 4 last
+    for (j in 5:6) {
+    for (i in NAcol) tab[j, i] <- ifelse (tab[j, 4] == "0", "-", tab[j, i])
+    }
+    
+    tab$`Std. estimate` [5:6] <- rd(as.numeric(tab$`Std. estimate` [5:6]))     
+    tab[5, 5] <- ifelse (tab[5, 5] == ".000000", ".00",tab[5, 5])
+    tab[6, 5] <- ifelse (tab[6, 5] == ".000000", ".00",tab[6, 5])  
+     
+    kable(tab, align=c('l', rep('r', 4)))
+
+}# LatentSRM
+```
+
+<p align="center">*(a) Listening*</p>
+
+```{r, echo=FALSE }
+
+x$a <- x$LP1 
+x$b <- x$LP2 
+
+LatentSRM (a , b , x)
+
+```
+
+
+<p align="center">*(b) Intimacy*</p>
+
+```{r, echo=FALSE }
+x$a <- x$IP1 
+x$b <- x$IP2
+LatentSRM (a , b ,  x)
+
+```
+
+
+<p align="center">*(c) Speech*</p>
+
+```{r, echo=FALSE }
+x$a <- x$SP1
+x$b <- x$SP2
+ LatentSRM (a , b , x)
+```
+
+<p align="center">*(d) Helping OCB *</p>
+
+```{r, echo=FALSE }
+x$a <- x$HP1
+x$b <- x$HP2
+ LatentSRM (a , b , x)
+```
+
+
+*Note*.  *N* = `r nrow(fit$effects)` participants embedded in `r length(levels(fit$effects$group.id))` round robins providing `r nrow(fit$effectsRel)` dyadic ratings.
+
