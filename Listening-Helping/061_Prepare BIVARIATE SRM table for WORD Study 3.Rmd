@@ -1,0 +1,103 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+\fontfamily{cmr}
+\fontsize{12}{22}
+\fontseries{b}
+\selectfont 
+
+Table 11. 
+
+*Study 3: Bivariate SRM correlations for latent variables*
+
+```{r, echo=FALSE}
+
+# Before running this section: Run the data creation processes, according to the README file
+
+library(ggplot2)                                    # Loading for TripleR required package: ggplot2
+suppressWarnings(library(TripleR, suppressPackageStartupMessages() )) # Suppres Loading required package: ggplot2;
+
+suppressMessages(library(knitr))
+suppressMessages(library("weights"))
+
+load("Study3ReadyforAnalaysis")
+
+# General documentation for the current file:
+# ------------------------------------------
+# In the coming rows the same section repeats with all the combination between all the SRM variables.
+# each timme fit is created, the desired columns are fetched into tab.
+# tab is formated and joins the presentation table called TAB.
+# 
+# p.s: yes, ofcourse it should be done in a nicer programming manner, but...
+# 
+fit <- RR(LP1/LP2 + IP1/IP2     ~ actor.id*partner.id | group.id, data = x)
+tab <- fit$bivariate[, c(1, 3, 7)]          # column 1 = the SRM type of question, columns 3 and 7 are the std and p.value
+    tab$p.value  <- round (ifelse(tab$p.value < .001, .001, tab$p.value), digits= 3)
+    tab$p.value  <- rd(tab$p.value, digits = 3)     # rd rounds and removes leading zero.
+    tab$standardized  <- rd(as.numeric(tab$standardized))
+    rownames(tab) <- NULL
+    TAB <- tab
+    TAB[, 1] <- as.character (TAB[, 1])     # avoid creating the first column as factor.
+    
+fit <- RR(LP1/LP2 + SP1/SP2     ~ actor.id*partner.id | group.id, data = x)
+    tab <- fit$bivariate[, c(3, 7)]
+    tab$p.value  <- round (ifelse(tab$p.value < .001, .001, tab$p.value), digits= 3)
+    tab$p.value  <- rd(tab$p.value, digits = 3)
+    tab$standardized  <- rd(as.numeric(tab$standardized))
+    rownames(tab) <- NULL
+    TAB <- cbind(TAB, tab)
+    
+    
+fit <- RR(LP1/LP2 + HP1/HP2     ~ actor.id*partner.id | group.id, data = x)
+    tab <- fit$bivariate[, c(3, 7)]
+    tab$p.value  <- round (ifelse(tab$p.value < .001, .001, tab$p.value), digits= 3)
+    tab$p.value  <- rd(tab$p.value, digits = 3)
+    tab$standardized  <- rd(as.numeric(tab$standardized))
+    rownames(tab) <- NULL
+    TAB <- cbind(TAB, tab) 
+
+fit <- RR(IP1/IP2 + SP1/SP2     ~ actor.id*partner.id | group.id, data = x)
+    tab <- fit$bivariate[, c(3, 7)]
+    tab$p.value  <- round (ifelse(tab$p.value < .001, .001, tab$p.value), digits= 3)
+    tab$p.value  <- rd(tab$p.value, digits = 3)
+    tab$standardized  <- rd(as.numeric(tab$standardized))
+    rownames(tab) <- NULL
+    TAB <- cbind(TAB, tab)      
+    
+        
+fit <- RR(IP1/IP2 + HP1/HP2     ~ actor.id*partner.id | group.id, data = x)
+    tab <- fit$bivariate[, c(3, 7)]
+    tab$p.value  <- round (ifelse(tab$p.value < .001, .001, tab$p.value), digits= 3)
+    tab$p.value  <- rd(tab$p.value, digits = 3)
+    tab$standardized  <- rd(as.numeric(tab$standardized))
+    rownames(tab) <- NULL
+    TAB <- cbind(TAB, tab)
+    
+fit <- RR(SP1/SP2 + HP1/HP2     ~ actor.id*partner.id | group.id, data = x)
+    tab <- fit$bivariate[, c(3, 7)]
+    tab$p.value  <- round (ifelse(tab$p.value < .001, .001, tab$p.value), digits= 3)
+    tab$p.value  <- rd(tab$p.value, digits = 3)
+    tab$standardized  <- rd(as.numeric(tab$standardized))
+    rownames(tab) <- NULL    
+    TAB <- cbind(TAB, tab)
+    
+    header <- c("Type of correlation", rep(c("r", "p"), 6))
+    
+    names(TAB) <- c("", 
+            "Listening w Intimacy", "", 
+            "Listening w Speech", "", 
+            "Listening w Help", "", 
+            "Intimacy w Speech", "", 
+            "Intimacy w Help","",
+            "Speech w Help","")
+    TAB <- rbind(header, TAB)
+    
+    TAB[, 1] <- as.character(gsub("covariance", "", TAB[, 1]))
+       
+    # kable is a function of RMARKDOWN that formats the table in the outcome file 
+    # align = a vector stating where to align each column.
+    kable(TAB, align=c('l', rep('r', 12)))              
+```
+*Note*.  The first four rows are based on *N* = `r nrow(fit$univariate[[1]]$effects)` participants, and the last two on `r nrow(fit$univariate[[1]]$effectsRel)` dyads.  
