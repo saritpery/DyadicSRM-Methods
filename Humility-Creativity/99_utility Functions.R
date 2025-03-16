@@ -36,14 +36,15 @@ ipak <- function(pkg){
 
 # fname() generates time-stamped file names in a unified name structure. =======
 fname <- function(title = "",sep = "_", fileExtention = ".csv",
-                  study = "", includeStudyName = TRUE){
+                  study = "", includeStudyName = TRUE, includeTime = TRUE){
   if (substr(fileExtention,1,1) != ".") # add a . to file extention if missing.
     fileExtention <- paste0(".", fileExtention)
   if (includeStudyName & study == "" & exists("studyName", envir = globalenv()))
     study <- studyName
   if (study != "") study <- paste0(study, " ")
-  fname <- paste0(study, title, sep, 
-                  format(Sys.time(), "%d%b%Y_%H%M"), 
+  fname <- paste0(study, title, 
+                  ifelse(includeTime, 
+                         paste0(sep, format(Sys.time(), "%d%b%Y_%H%M")), ""),
                   fileExtention)
 }
 
@@ -131,7 +132,7 @@ showAPIM <- function(f, FIT = FALSE, mlMethod = "REML", dataset = pw,
   # calculate the number of rows and interaction rows, and display it.
   # return the fit for further analysis if required.
   if (!"try-error" %in% class(t)) {
-    dummycodeAnalysis <- str_count(f, "aDum|pDum") > 0
+    dummycodeAnalysis <- str_count(f, "pDum|tDum") > 0
     if(!dummycodeAnalysis) {
       print(round(data.frame(summary(FIT)$tTable), 2))
       return(FIT)
@@ -180,7 +181,7 @@ APIMformulaShow <- function(dv = varnames[1], iv = varnames[2],
   ivs <- paste0(rep(iv, each = 2), 
                 rep(c(paste0(sufAB, " "), sufBA), length(iv)),
                 collapse = " + ")
-  f <- paste0(dv, paste0(sufAB, " ~ "), ivs, " + aDum + pDum")
+  f <- paste0(dv, paste0(sufAB, " ~ "), ivs, " + pDum + tDum")
   if (runShowAPIM) 
     return(showAPIM(f, dataset = dataset, anal.level = anal.level)) else return(f)
 }
